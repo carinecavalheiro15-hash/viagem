@@ -12,11 +12,12 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.gerenciamentodeviagens.viewmodel.LoginViewModel
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import com.example.gerenciamentodeviagens.model.Usuario
 
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel,
-    onLoginSucesso: () -> Unit,
+    onLoginSucesso: (Usuario) -> Unit,
     onIrParaRegistro: () -> Unit,
     onEsqueciSenha: () -> Unit
 ) {
@@ -24,13 +25,13 @@ fun LoginScreen(
     var senha by remember { mutableStateOf("") }
     var mostrarSenha by remember { mutableStateOf(false) }
 
-    val loginSucesso by viewModel.loginSucesso.collectAsState()
+    val usuarioLogado by viewModel.usuarioLogado.collectAsState()
     val erroMensagem by viewModel.erroMensagem.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(loginSucesso) {
-        if (loginSucesso) onLoginSucesso()
+    LaunchedEffect(usuarioLogado) {
+        usuarioLogado?.let { onLoginSucesso(it) }
     }
 
     LaunchedEffect(erroMensagem) {
