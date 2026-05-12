@@ -58,8 +58,11 @@ fun AppNavGraph() {
         }
 
         composable("home") {
+            val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
             HomeScreen(
                 nomeUsuario = usuarioLogado?.nome ?: "Usuário",
+                userId = usuarioLogado?.id ?: 0,
+                viewModel = viagemVM,
                 onSair = {
                     usuarioLogado = null
                     navController.navigate("login") {

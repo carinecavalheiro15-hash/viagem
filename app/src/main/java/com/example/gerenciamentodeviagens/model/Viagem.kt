@@ -11,5 +11,6 @@ data class Viagem(
     val dataInicio: Long,
     val dataFim: Long,
     val orcamento: Double,
+    val totalGastos: Double = 0.0, // Campo novo solicitado
     val userId: Int
 )

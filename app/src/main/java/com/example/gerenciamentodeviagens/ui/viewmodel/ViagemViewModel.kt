@@ -5,22 +5,39 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gerenciamentodeviagens.data.repository.ViagemRepository
 import com.example.gerenciamentodeviagens.model.Viagem
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ViagemViewModel(private val repository: ViagemRepository) : ViewModel() {
 
     private val _userId = MutableStateFlow<Int?>(null)
     
     val viagens = _userId.flatMapLatest { id ->
         if (id != null) repository.listarViagens(id)
-        else kotlinx.coroutines.flow.flowOf(emptyList())
+        else flowOf(emptyList())
     }
+
+    private val _viagemAtual = MutableStateFlow<Viagem?>(null)
+    val viagemAtual: StateFlow<Viagem?> = _viagemAtual
+
+    private val _cidadeAtual = MutableStateFlow<String?>(null)
+    val cidadeAtual: StateFlow<String?> = _cidadeAtual
 
     fun setUserId(id: Int) {
         _userId.value = id
+    }
+
+    fun buscarViagemPelaCidade(userId: Int, cidade: String) {
+        _cidadeAtual.value = cidade
+        viewModelScope.launch {
+            val hoje = System.currentTimeMillis()
+            _viagemAtual.value = repository.buscarViagemAtual(userId, cidade, hoje)
+        }
     }
 
     fun salvarViagem(viagem: Viagem) {

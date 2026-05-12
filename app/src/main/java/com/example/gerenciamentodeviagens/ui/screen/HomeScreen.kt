@@ -1,21 +1,40 @@
 package com.example.gerenciamentodeviagens.ui.screen
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Geocoder
+import android.os.Looper
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.gerenciamentodeviagens.ui.viewmodel.ViagemViewModel
+import com.google.android.gms.location.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.activity.ComponentActivity
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     nomeUsuario: String,
+    userId: Int,
+    viewModel: ViagemViewModel,
     onSair: () -> Unit,
     onNovaViagem: () -> Unit,
     onMinhasViagens: () -> Unit,
@@ -24,8 +43,56 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val viagemAtual by viewModel.viagemAtual.collectAsState()
+    val cidadeAtual by viewModel.cidadeAtual.collectAsState()
+    val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    // Sair do app ao voltar se o drawer estiver fechado
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    // Gerenciamento de Localização em Tempo Real (Updates Contínuos)
+    DisposableEffect(context) {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+            .setMinUpdateIntervalMillis(2000)
+            .build()
+
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    scope.launch {
+                        val cidade = withContext(Dispatchers.IO) {
+                            try {
+                                val geocoder = Geocoder(context, Locale.getDefault())
+                                @Suppress("DEPRECATION")
+                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                addresses?.getOrNull(0)?.let { addr ->
+                                    addr.locality ?: addr.subAdminArea ?: addr.adminArea
+                                }
+                            } catch (e: Exception) { null }
+                        }
+                        cidade?.let { viewModel.buscarViagemPelaCidade(userId, it) }
+                    }
+                }
+            }
+        }
+
+        try {
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+
+        onDispose {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
+    }
+
     BackHandler(enabled = drawerState.isClosed) {
         (context as? ComponentActivity)?.finish()
     }
@@ -36,50 +103,33 @@ fun HomeScreen(
             ModalDrawerSheet {
                 Text("Menu", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
                 HorizontalDivider()
-                
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Add, null) },
                     label = { Text("Nova Viagem") },
                     selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onNovaViagem()
-                    }
+                    onClick = { scope.launch { drawerState.close() }; onNovaViagem() }
                 )
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.CardTravel, contentDescription = null) },
+                    icon = { Icon(Icons.Default.CardTravel, null) },
                     label = { Text("Minhas Viagens") },
                     selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onMinhasViagens()
-                    }
+                    onClick = { scope.launch { drawerState.close() }; onMinhasViagens() }
                 )
-                
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(modifier = Modifier.height(8.dp))
-
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Info, null) },
                     label = { Text("Sobre") },
                     selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onSobre()
-                    }
+                    onClick = { scope.launch { drawerState.close() }; onSobre() }
                 )
-                
                 Spacer(modifier = Modifier.weight(1f))
-                
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
                     label = { Text("Sair") },
                     selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onSair()
-                    }
+                    onClick = { scope.launch { drawerState.close() }; onSair() }
                 )
             }
         }
@@ -101,12 +151,48 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(16.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Bem-vinda, $nomeUsuario!", style = MaterialTheme.typography.headlineMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Use o menu lateral para gerenciar suas viagens.")
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Localização: ${cidadeAtual ?: "Buscando..."}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                viagemAtual?.let { viagem ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Viagem em Andamento", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("📍 Destino: ${viagem.destino}", fontWeight = FontWeight.Bold)
+                            Text("🏖️ Tipo: ${viagem.tipo}")
+                            Text("📅 Período: ${dateFormatter.format(Date(viagem.dataInicio))} - ${dateFormatter.format(Date(viagem.dataFim))}")
+                            Text("💰 Orçamento: R$ ${String.format(Locale.getDefault(), "%.2f", viagem.orcamento)}")
+                            Text("📊 Total de Gastos: R$ ${String.format(Locale.getDefault(), "%.2f", viagem.totalGastos)}", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } ?: run {
+                    Text(
+                        text = if (cidadeAtual == null) "Aguardando sinal do GPS..." 
+                               else "Nenhuma viagem em andamento para $cidadeAtual nesta data.",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(top = 20.dp)
+                    )
+                }
             }
         }
     }

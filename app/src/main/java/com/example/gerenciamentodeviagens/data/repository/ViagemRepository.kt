@@ -12,4 +12,8 @@ class ViagemRepository(private val dao: ViagemDao) {
     suspend fun atualizar(viagem: Viagem) = dao.atualizar(viagem)
     
     suspend fun excluir(viagem: Viagem) = dao.excluir(viagem)
+
+    suspend fun buscarViagemAtual(userId: Int, cidade: String, dataAtual: Long): Viagem? {
+        return dao.buscarViagemAtual(userId, cidade, dataAtual)
+    }
 }
