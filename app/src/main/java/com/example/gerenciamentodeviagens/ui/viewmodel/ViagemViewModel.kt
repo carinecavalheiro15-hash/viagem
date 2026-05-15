@@ -22,8 +22,8 @@ class ViagemViewModel(private val repository: ViagemRepository) : ViewModel() {
         else flowOf(emptyList())
     }
 
-    private val _viagemAtual = MutableStateFlow<Viagem?>(null)
-    val viagemAtual: StateFlow<Viagem?> = _viagemAtual
+    private val _viagensAtuais = MutableStateFlow<List<Viagem>>(emptyList())
+    val viagensAtuais: StateFlow<List<Viagem>> = _viagensAtuais
 
     private val _cidadeAtual = MutableStateFlow<String?>(null)
     val cidadeAtual: StateFlow<String?> = _cidadeAtual
@@ -32,11 +32,12 @@ class ViagemViewModel(private val repository: ViagemRepository) : ViewModel() {
         _userId.value = id
     }
 
-    fun buscarViagemPelaCidade(userId: Int, cidade: String) {
+    fun buscarViagensPelaCidade(userId: Int, cidade: String) {
         _cidadeAtual.value = cidade
         viewModelScope.launch {
             val hoje = System.currentTimeMillis()
-            _viagemAtual.value = repository.buscarViagemAtual(userId, cidade, hoje)
+            // Busca a lista de todas as viagens que batem com a cidade e data
+            _viagensAtuais.value = repository.buscarViagensAtuais(userId, cidade, hoje)
         }
     }
 

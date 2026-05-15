@@ -11,13 +11,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -33,7 +37,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +54,9 @@ fun HomeScreenV2(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val viagemAtual by viewModel.viagemAtual.collectAsState()
+    
+    // Observa a lista de viagens encontradas
+    val viagensAtuais by viewModel.viagensAtuais.collectAsState()
     val cidadeAtual by viewModel.cidadeAtual.collectAsState()
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
@@ -61,7 +68,8 @@ fun HomeScreenV2(
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    DisposableEffect(context) {
+    // Monitoramento da Localização em Tempo Real (Updates Contínuos)
+    DisposableEffect(context, userId) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
             .setMinUpdateIntervalMillis(2000)
@@ -81,7 +89,7 @@ fun HomeScreenV2(
                                 }
                             } catch (e: Exception) { null }
                         }
-                        cidade?.let { viewModel.buscarViagemPelaCidade(userId, it) }
+                        cidade?.let { viewModel.buscarViagensPelaCidade(userId, it) }
                     }
                 }
             }
@@ -114,54 +122,43 @@ fun HomeScreenV2(
                 drawerShape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(purpleGradient),
+                    modifier = Modifier.fillMaxWidth().height(180.dp).background(purpleGradient),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.2f),
-                            modifier = Modifier.size(64.dp)
-                        ) {
+                        Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(64.dp)) {
                             Icon(Icons.Default.Person, null, modifier = Modifier.padding(12.dp), tint = Color.White)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(nomeUsuario, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
-                
                 Spacer(modifier = Modifier.height(16.dp))
-                
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.AddCircle, null) },
-                    label = { Text("Nova Viagem", fontWeight = FontWeight.Medium) },
+                    label = { Text("Nova Viagem") },
                     selected = false,
                     onClick = { scope.launch { drawerState.close() }; onNovaViagem() },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Luggage, null) },
-                    label = { Text("Minhas Viagens", fontWeight = FontWeight.Medium) },
+                    label = { Text("Minhas Viagens") },
                     selected = false,
                     onClick = { scope.launch { drawerState.close() }; onMinhasViagens() },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
-                
-                PaddingDelimiter()
-
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Info, null) },
-                    label = { Text("Sobre o App", fontWeight = FontWeight.Medium) },
+                    label = { Text("Sobre o App") },
                     selected = false,
                     onClick = { scope.launch { drawerState.close() }; onSobre() },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
-                
                 Spacer(modifier = Modifier.weight(1f))
-                
                 NavigationDrawerItem(
                     icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
                     label = { Text("Sair da Conta", color = Color.Red) },
@@ -181,10 +178,7 @@ fun HomeScreenV2(
                             Icon(Icons.Default.Menu, "Menu")
                         }
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.White,
-                        titleContentColor = Color(0xFF6200EE)
-                    )
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White, titleContentColor = Color(0xFF6200EE))
                 )
             },
             containerColor = Color(0xFFF5F5F5)
@@ -193,33 +187,20 @@ fun HomeScreenV2(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(24.dp),
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Olá, $nomeUsuario!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+                Text(text = "Olá, $nomeUsuario!", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.Black)
                 
                 Card(
-                    modifier = Modifier
-                        .padding(vertical = 16.dp)
-                        .fillMaxWidth(),
+                    modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFF6200EE).copy(alpha = 0.1f),
-                            modifier = Modifier.size(40.dp)
-                        ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = CircleShape, color = Color(0xFF6200EE).copy(alpha = 0.1f), modifier = Modifier.size(40.dp)) {
                             Icon(Icons.Default.LocationOn, null, modifier = Modifier.padding(8.dp), tint = Color(0xFF6200EE))
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -230,67 +211,51 @@ fun HomeScreenV2(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                viagemAtual?.let { viagem ->
+                if (viagensAtuais.isNotEmpty()) {
                     Text(
-                        "VIAGEM EM CURSO",
+                        "VIAGENS EM CURSO NESTA REGIÃO",
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Gray,
                         letterSpacing = 1.sp
                     )
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF6200EE))
-                    ) {
-                        Column(modifier = Modifier.padding(24.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    if (viagem.tipo == "Lazer") Icons.Default.BeachAccess else Icons.Default.BusinessCenter,
-                                    null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(viagem.destino, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                InfoColumn("Início", dateFormatter.format(Date(viagem.dataInicio)))
-                                InfoColumn("Fim", dateFormatter.format(Date(viagem.dataFim)))
-                            }
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                InfoColumn("Orçamento", "R$ ${String.format(Locale.getDefault(), "%.2f", viagem.orcamento)}")
-                                InfoColumn("Gastos", "R$ ${String.format(Locale.getDefault(), "%.2f", viagem.totalGastos)}")
+                    viagensAtuais.forEach { viagem ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF6200EE))
+                        ) {
+                            Column(modifier = Modifier.padding(24.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        if (viagem.tipo == "Lazer") Icons.Default.BeachAccess else Icons.Default.BusinessCenter,
+                                        null, tint = Color.White, modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(viagem.destino, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    InfoColumnV2("Início", dateFormatter.format(Date(viagem.dataInicio)))
+                                    InfoColumnV2("Fim", dateFormatter.format(Date(viagem.dataFim)))
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    InfoColumnV2("Orçamento", "R$ ${String.format(Locale.getDefault(), "%.2f", viagem.orcamento)}")
+                                    InfoColumnV2("Gastos", "R$ ${String.format(Locale.getDefault(), "%.2f", viagem.totalGastos)}")
+                                }
                             }
                         }
                     }
-                } ?: run {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .background(Color.White, RoundedCornerShape(24.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
+                } else {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.White, RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.EventBusy, null, modifier = Modifier.size(48.dp), tint = Color.LightGray)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "Nenhuma viagem ativa para\n${cidadeAtual ?: "esta localização"}",
-                                textAlign = TextAlign.Center,
-                                color = Color.Gray
-                            )
+                            Text("Nenhuma viagem ativa para\n${cidadeAtual ?: "esta localização"}", textAlign = TextAlign.Center, color = Color.Gray)
                         }
                     }
                 }
@@ -300,16 +265,9 @@ fun HomeScreenV2(
 }
 
 @Composable
-fun InfoColumn(label: String, value: String) {
+fun InfoColumnV2(label: String, value: String) {
     Column {
         Text(label, fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
         Text(value, fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.Bold)
     }
-}
-
-@Composable
-fun PaddingDelimiter() {
-    Spacer(modifier = Modifier.height(8.dp))
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(alpha = 0.5f))
-    Spacer(modifier = Modifier.height(8.dp))
 }

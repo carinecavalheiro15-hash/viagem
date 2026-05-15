@@ -21,6 +21,16 @@ interface ViagemDao {
     @Query("SELECT * FROM viagens WHERE id = :id")
     suspend fun buscarPorId(id: Int): Viagem?
 
-    @Query("SELECT * FROM viagens WHERE userId = :userId AND LOWER(destino) = LOWER(:cidade) AND :dataAtual BETWEEN dataInicio AND dataFim LIMIT 1")
-    suspend fun buscarViagemAtual(userId: Int, cidade: String, dataAtual: Long): Viagem?
+    /**
+     * Busca todas as viagens para a cidade atual dentro do período.
+     * 1. Usa LIKE para que "Bombinhas" encontre "Bombinhas SC" (ou vice-versa).
+     * 2. Adiciona margem de 24h (86400000ms) para lidar com fuso horário e vésperas.
+     */
+    @Query("""
+        SELECT * FROM viagens 
+        WHERE userId = :userId 
+        AND (LOWER(destino) LIKE '%' || LOWER(:cidade) || '%' OR LOWER(:cidade) LIKE '%' || LOWER(destino) || '%')
+        AND (:dataAtual >= (dataInicio - 86400000) AND :dataAtual <= (dataFim + 86400000))
+    """)
+    suspend fun buscarViagensAtuais(userId: Int, cidade: String, dataAtual: Long): List<Viagem>
 }

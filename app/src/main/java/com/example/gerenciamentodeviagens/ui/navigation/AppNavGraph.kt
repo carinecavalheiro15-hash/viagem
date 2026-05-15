@@ -35,6 +35,7 @@ fun AppNavGraph() {
         composable("login") {
             val loginVM: LoginViewModel = viewModel(factory = LoginViewModelFactory(usuarioRepository))
 
+            // Retornando ao layout original
             LoginScreen(
                 viewModel = loginVM,
                 onLoginSucesso = { usuario ->
@@ -51,6 +52,7 @@ fun AppNavGraph() {
         composable("registro") {
             val registroVM: RegistroViewModel = viewModel(factory = RegistroViewModelFactory(usuarioRepository))
 
+            // Retornando ao layout original
             RegistroScreen(
                 viewModel = registroVM,
                 onRegistroSucesso = { navController.popBackStack() }
@@ -59,6 +61,8 @@ fun AppNavGraph() {
 
         composable("home") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
+            
+            // Retornando ao layout original (com lógica de localização inclusa)
             HomeScreen(
                 nomeUsuario = usuarioLogado?.nome ?: "Usuário",
                 userId = usuarioLogado?.id ?: 0,
@@ -77,6 +81,8 @@ fun AppNavGraph() {
 
         composable("nova_viagem") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
+            
+            // Retornando ao layout original
             NovaViagemScreen(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
@@ -86,6 +92,8 @@ fun AppNavGraph() {
 
         composable("minhas_viagens") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
+            
+            // Retornando ao layout original
             MinhasViagensScreen(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
@@ -102,6 +110,8 @@ fun AppNavGraph() {
         ) { backStackEntry ->
             val viagemId = backStackEntry.arguments?.getInt("viagemId") ?: 0
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
+            
+            // Retornando ao layout original para edição
             NovaViagemScreen(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
