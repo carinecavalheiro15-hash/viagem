@@ -35,8 +35,8 @@ fun AppNavGraph() {
         composable("login") {
             val loginVM: LoginViewModel = viewModel(factory = LoginViewModelFactory(usuarioRepository))
 
-            // Retornando ao layout original
-            LoginScreen(
+            // Ativando Layout Profissional V2
+            LoginScreenV2(
                 viewModel = loginVM,
                 onLoginSucesso = { usuario ->
                     usuarioLogado = usuario
@@ -52,18 +52,19 @@ fun AppNavGraph() {
         composable("registro") {
             val registroVM: RegistroViewModel = viewModel(factory = RegistroViewModelFactory(usuarioRepository))
 
-            // Retornando ao layout original
-            RegistroScreen(
+            // Ativando Layout Profissional V2
+            RegistroScreenV2(
                 viewModel = registroVM,
-                onRegistroSucesso = { navController.popBackStack() }
+                onRegistroSucesso = { navController.popBackStack() },
+                onVoltar = { navController.popBackStack() }
             )
         }
 
         composable("home") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
             
-            // Retornando ao layout original (com lógica de localização inclusa)
-            HomeScreen(
+            // Ativando Home Profissional V2 (Mostra apenas 1 unidade de viagem)
+            HomeScreenV2(
                 nomeUsuario = usuarioLogado?.nome ?: "Usuário",
                 userId = usuarioLogado?.id ?: 0,
                 viewModel = viagemVM,
@@ -82,8 +83,8 @@ fun AppNavGraph() {
         composable("nova_viagem") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
             
-            // Retornando ao layout original
-            NovaViagemScreen(
+            // Ativando Layout Profissional V2
+            NovaViagemScreenV2(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
                 onVoltar = { navController.popBackStack() }
@@ -93,8 +94,8 @@ fun AppNavGraph() {
         composable("minhas_viagens") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
             
-            // Retornando ao layout original
-            MinhasViagensScreen(
+            // Ativando Layout Profissional V2
+            MinhasViagensScreenV2(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
                 onVoltar = { navController.popBackStack() },
@@ -111,8 +112,8 @@ fun AppNavGraph() {
             val viagemId = backStackEntry.arguments?.getInt("viagemId") ?: 0
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
             
-            // Retornando ao layout original para edição
-            NovaViagemScreen(
+            // Ativando Layout Profissional V2 para Edição
+            NovaViagemScreenV2(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
                 viagemId = viagemId,

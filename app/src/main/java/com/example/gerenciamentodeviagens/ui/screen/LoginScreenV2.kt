@@ -2,12 +2,10 @@ package com.example.gerenciamentodeviagens.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,9 +46,8 @@ fun LoginScreenV2(
         }
     }
 
-    // Degradê de fundo
     val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF6200EE), Color(0xFF3700B3))
+        colors = listOf(Color(0xFF673AB7), Color(0xFF311B92))
     )
 
     Scaffold(
@@ -69,44 +66,55 @@ fun LoginScreenV2(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // ILUSTRAÇÃO DE VIAGEM EM COMPOSE
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.fillMaxSize()
+                    ) {}
+                    Icon(
+                        imageVector = Icons.Default.FlightTakeoff,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
-                    text = "TravelManager",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    text = "BoraViajar",
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = (-1).sp
                 )
                 Text(
-                    text = "Sua próxima aventura começa aqui",
+                    text = "Organize seu próximo destino",
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 16.sp
+                    fontSize = 14.sp
                 )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(40.dp))
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            "Bem-vinda de volta!",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.DarkGray
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
                             label = { Text("E-mail") },
-                            leadingIcon = { Icon(Icons.Default.Mail, null) },
+                            leadingIcon = { Icon(Icons.Default.Email, null, tint = Color(0xFF673AB7)) },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(16.dp)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -115,7 +123,7 @@ fun LoginScreenV2(
                             value = senha,
                             onValueChange = { senha = it },
                             label = { Text("Senha") },
-                            leadingIcon = { Icon(Icons.Default.Lock, null) },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = Color(0xFF673AB7)) },
                             visualTransformation = if (mostrarSenha) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
                                 IconButton(onClick = { mostrarSenha = !mostrarSenha }) {
@@ -123,7 +131,7 @@ fun LoginScreenV2(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(16.dp)
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -133,14 +141,14 @@ fun LoginScreenV2(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
                         ) {
                             Text("ENTRAR", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
 
                         TextButton(onClick = onEsqueciSenha) {
-                            Text("Esqueceu sua senha?", color = Color.Gray)
+                            Text("Esqueceu a senha?", color = Color.Gray)
                         }
                     }
                 }
@@ -148,8 +156,10 @@ fun LoginScreenV2(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 TextButton(onClick = onIrParaRegistro) {
-                    Text("Não tem conta? ", color = Color.White.copy(alpha = 0.8f))
-                    Text("Cadastre-se", color = Color.White, fontWeight = FontWeight.Bold)
+                    Row {
+                        Text("Novo por aqui? ", color = Color.White.copy(alpha = 0.8f))
+                        Text("Crie sua conta", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

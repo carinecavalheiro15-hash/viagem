@@ -41,10 +41,6 @@ fun NovaViagemScreenV2(
     
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF6200EE), Color(0xFF3700B3))
-    )
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -54,7 +50,7 @@ fun NovaViagemScreenV2(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF6200EE))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF673AB7))
             )
         }
     ) { paddingValues ->
@@ -77,14 +73,14 @@ fun NovaViagemScreenV2(
                     OutlinedTextField(
                         value = destino,
                         onValueChange = { destino = it },
-                        label = { Text("Para onde você vai?") },
-                        leadingIcon = { Icon(Icons.Default.Place, null, tint = Color(0xFF6200EE)) },
+                        label = { Text("Destino") },
+                        leadingIcon = { Icon(Icons.Default.Place, null, tint = Color(0xFF673AB7)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    Text("Tipo de Viagem", fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tipo", fontWeight = FontWeight.Bold, color = Color.Gray)
+                    Row {
                         FilterChip(
                             selected = tipo == "Lazer",
                             onClick = { tipo = "Lazer" },
@@ -98,29 +94,19 @@ fun NovaViagemScreenV2(
                         )
                     }
 
-                    OutlinedButton(
-                        onClick = { showDatePickerInicio = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.DateRange, null, modifier = Modifier.padding(end = 8.dp))
+                    OutlinedButton(onClick = { showDatePickerInicio = true }, modifier = Modifier.fillMaxWidth()) {
                         Text("Início: ${dateFormatter.format(Date(dataInicio))}")
                     }
 
-                    OutlinedButton(
-                        onClick = { showDatePickerFim = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.DateRange, null, modifier = Modifier.padding(end = 8.dp))
-                        Text("Retorno: ${dateFormatter.format(Date(dataFim))}")
+                    OutlinedButton(onClick = { showDatePickerFim = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Fim: ${dateFormatter.format(Date(dataFim))}")
                     }
 
                     OutlinedTextField(
                         value = orcamento,
                         onValueChange = { orcamento = it },
-                        label = { Text("Orçamento Estimado") },
-                        prefix = { Text("R$ ", fontWeight = FontWeight.Bold) },
+                        label = { Text("Orçamento") },
+                        prefix = { Text("R$ ") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -130,6 +116,8 @@ fun NovaViagemScreenV2(
             Button(
                 onClick = {
                     if (destino.isNotBlank() && orcamento.isNotBlank()) {
+                        // CORREÇÃO: Converte vírgula em ponto para o sistema entender o valor
+                        val valorLimpo = orcamento.replace(",", ".")
                         viewModel.salvarViagem(
                             Viagem(
                                 id = viagemId,
@@ -137,7 +125,7 @@ fun NovaViagemScreenV2(
                                 tipo = tipo,
                                 dataInicio = dataInicio,
                                 dataFim = dataFim,
-                                orcamento = orcamento.toDoubleOrNull() ?: 0.0,
+                                orcamento = valorLimpo.toDoubleOrNull() ?: 0.0,
                                 userId = userId
                             )
                         )
@@ -146,9 +134,9 @@ fun NovaViagemScreenV2(
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
             ) {
-                Text("CONFIRMAR VIAGEM", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("SALVAR VIAGEM", fontWeight = FontWeight.Bold)
             }
         }
 
