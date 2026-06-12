@@ -4,11 +4,14 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Geocoder
+import android.net.Uri
 import android.os.Looper
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,8 +24,11 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +64,35 @@ fun HomeScreenV2(
     val cidadeAtual by viewModel.cidadeAtual.collectAsState()
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
+    // Estados para as fotos
+    var showPhotoDialog by remember { mutableStateOf(false) }
+
+    // Launcher para abrir a Galeria (Permite ver a pasta Downloads)
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            Toast.makeText(context, "Foto anexada com sucesso!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Launcher para abrir a Câmera
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            Toast.makeText(context, "Foto capturada!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Launcher para permissão da Câmera
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) cameraLauncher.launch(null)
+        else Toast.makeText(context, "Permissão da câmera negada", Toast.LENGTH_SHORT).show()
+    }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { _ -> }
@@ -91,33 +126,43 @@ fun HomeScreenV2(
                 }
             }
         }
-
         try {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
         } catch (e: SecurityException) { e.printStackTrace() }
-
         onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
     }
 
-    BackHandler(enabled = drawerState.isClosed) {
-        (context as? ComponentActivity)?.finish()
-    }
+    BackHandler(enabled = drawerState.isClosed) { (context as? ComponentActivity)?.finish() }
 
-    val headerGradient = Brush.verticalGradient(
+    val purpleGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF673AB7), Color(0xFF512DA8))
     )
+
+    if (showPhotoDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoDialog = false },
+            title = { Text("Adicionar Foto") },
+            text = { Text("Deseja tirar uma foto agora ou anexar um arquivo do seu computador?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPhotoDialog = false
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }) { Text("Tirar Foto") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPhotoDialog = false
+                    galleryLauncher.launch("image/*")
+                }) { Text("Anexar Arquivo") }
+            }
+        )
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = Color.White,
-                drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(160.dp).background(headerGradient),
-                    contentAlignment = Alignment.CenterStart
-                ) {
+            ModalDrawerSheet(drawerContainerColor = Color.White, drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().height(160.dp).background(purpleGradient), contentAlignment = Alignment.CenterStart) {
                     Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(60.dp)) {
                             Icon(Icons.Default.Person, null, modifier = Modifier.padding(12.dp), tint = Color.White)
@@ -129,47 +174,20 @@ fun HomeScreenV2(
                         }
                     }
                 }
-                
                 Spacer(modifier = Modifier.height(16.dp))
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.AddCircleOutline, null) },
-                    label = { Text("Nova Viagem") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onNovaViagem() },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Map, null) },
-                    label = { Text("Minhas Viagens") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onMinhasViagens() },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-                
+                NavigationDrawerItem(icon = { Icon(Icons.Default.AddCircleOutline, null) }, label = { Text("Nova Viagem") }, selected = false, onClick = { scope.launch { drawerState.close() }; onNovaViagem() }, modifier = Modifier.padding(horizontal = 12.dp))
+                NavigationDrawerItem(icon = { Icon(Icons.Default.Map, null) }, label = { Text("Meus Roteiros") }, selected = false, onClick = { scope.launch { drawerState.close() }; onMinhasViagens() }, modifier = Modifier.padding(horizontal = 12.dp))
                 HorizontalDivider(modifier = Modifier.padding(24.dp), color = Color.LightGray.copy(alpha = 0.5f))
-
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Info, null) },
-                    label = { Text("Sobre BoraViajar") },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onSobre() },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
+                NavigationDrawerItem(icon = { Icon(Icons.Default.Info, null) }, label = { Text("Sobre BoraViajar") }, selected = false, onClick = { scope.launch { drawerState.close() }; onSobre() }, modifier = Modifier.padding(horizontal = 12.dp))
                 Spacer(modifier = Modifier.weight(1f))
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
-                    label = { Text("Sair", color = Color.Red) },
-                    selected = false,
-                    onClick = { scope.launch { drawerState.close() }; onSair() },
-                    modifier = Modifier.padding(12.dp)
-                )
+                NavigationDrawerItem(icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) }, label = { Text("Sair", color = Color.Red) }, selected = false, onClick = { scope.launch { drawerState.close() }; onSair() }, modifier = Modifier.padding(12.dp))
             }
         }
     ) {
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("BoraViajar", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, fontSize = 20.sp) },
+                    title = { Text(text = "Bem-vinda, $nomeUsuario!", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF673AB7)) },
                     navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Menu") } },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
                 )
@@ -180,93 +198,78 @@ fun HomeScreenV2(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(20.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Card de Localização
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = CircleShape, color = Color(0xFF673AB7).copy(alpha = 0.1f), modifier = Modifier.size(44.dp)) {
-                            Icon(Icons.Default.MyLocation, null, modifier = Modifier.padding(10.dp), tint = Color(0xFF673AB7))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Sua localização atual", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                            Text(cidadeAtual ?: "Buscando GPS...", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color(0xFF333333))
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                // Lógica de exibir apenas 1 unidade de viagem
                 val viagemParaMostrar = viagensAtuais.firstOrNull()
 
                 if (viagemParaMostrar != null) {
-                    Text(
-                        "VIAGEM EM CURSO",
-                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 12.dp),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF673AB7),
-                        letterSpacing = 1.sp
-                    )
-                    
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF673AB7)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(24.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    if (viagemParaMostrar.tipo == "Lazer") Icons.Default.BeachAccess else Icons.Default.Work,
-                                    null, tint = Color.White, modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(viagemParaMostrar.destino, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                    // 1. MAPA NO TOPO
+                    Text("LOCALIZAÇÃO NO MAPA", modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 1.sp)
+                    Card(modifier = Modifier.fillMaxWidth().height(120.dp), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFFE3F2FD))) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val stroke = 1.5f
+                                val street = Color.White
+                                for (i in 1..10) {
+                                    drawLine(street, Offset(size.width * (i * 0.1f), 0f), Offset(size.width * (i * 0.1f), size.height), strokeWidth = stroke)
+                                    drawLine(street, Offset(0f, size.height * (i * 0.1f)), Offset(size.width, size.height * (i * 0.1f)), strokeWidth = stroke)
+                                }
                             }
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                InfoBlock("Partida", dateFormatter.format(Date(viagemParaMostrar.dataInicio)))
-                                InfoBlock("Retorno", dateFormatter.format(Date(viagemParaMostrar.dataFim)))
-                            }
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-                            Spacer(modifier = Modifier.height(20.dp))
-                            
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                // Exibindo o Orçamento cadastrado corretamente
-                                InfoBlock("Orçamento", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.orcamento))
-                                InfoBlock("Gastos Atuais", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.totalGastos))
+                            Icon(Icons.Default.LocationOn, null, tint = Color.Red, modifier = Modifier.size(32.dp).align(Alignment.Center).padding(bottom = 20.dp))
+                            Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0xFF4285F4)).padding(8.dp)) {
+                                Column {
+                                    Text(text = cidadeAtual ?: "Bombinhas", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(text = "Localização em tempo real", color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp)
+                                }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 2. VIAGEM ABAIXO DO MAPA
+                    Text("VIAGEM EM CURSO", modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF673AB7), letterSpacing = 1.sp)
+                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF673AB7)), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (viagemParaMostrar.tipo == "Lazer") Icons.Default.BeachAccess else Icons.Default.BusinessCenter, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(viagemParaMostrar.destino, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                TripBlockV2("Partida", dateFormatter.format(Date(viagemParaMostrar.dataInicio)))
+                                TripBlockV2("Retorno", dateFormatter.format(Date(viagemParaMostrar.dataFim)))
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                TripBlockV2("Orçamento", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.orcamento))
+                                TripBlockV2("Gastos Atuais", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.totalGastos))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 3. BOTÃO DE FOTOS
+                    Button(onClick = { showPhotoDialog = true }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))) {
+                        Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("FOTOS", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
                 } else {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(240.dp).background(Color.White, RoundedCornerShape(28.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.EventNote, null, modifier = Modifier.size(48.dp), tint = Color.LightGray)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Tudo organizado!\nNenhum roteiro para hoje em\n${cidadeAtual ?: "sua região"}",
-                                textAlign = TextAlign.Center,
-                                color = Color.Gray,
-                                lineHeight = 20.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.White, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(20.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.EventNote, null, modifier = Modifier.size(48.dp), tint = Color.LightGray.copy(alpha = 0.6f))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Tudo organizado!", style = MaterialTheme.typography.titleMedium, color = Color.DarkGray, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Nenhum roteiro para hoje em\n${cidadeAtual ?: "sua região"}", textAlign = TextAlign.Center, color = Color.Gray, fontSize = 13.sp)
                         }
                     }
                 }
@@ -276,9 +279,9 @@ fun HomeScreenV2(
 }
 
 @Composable
-fun InfoBlock(label: String, value: String) {
+fun TripBlockV2(label: String, value: String) {
     Column {
-        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-        Text(value, fontSize = 16.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+        Text(label, fontSize = 9.sp, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Text(value, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
     }
 }
