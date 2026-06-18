@@ -1,6 +1,9 @@
 package com.example.gerenciamentodeviagens.ui.navigation
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,7 +27,7 @@ fun AppNavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
-    
+
     val usuarioRepository = UsuarioRepository(db.userDao())
     val viagemRepository = ViagemRepository(db.viagemDao())
 
@@ -34,8 +37,6 @@ fun AppNavGraph() {
 
         composable("login") {
             val loginVM: LoginViewModel = viewModel(factory = LoginViewModelFactory(usuarioRepository))
-
-            // Ativando Layout Profissional V2
             LoginScreenV2(
                 viewModel = loginVM,
                 onLoginSucesso = { usuario ->
@@ -51,8 +52,6 @@ fun AppNavGraph() {
 
         composable("registro") {
             val registroVM: RegistroViewModel = viewModel(factory = RegistroViewModelFactory(usuarioRepository))
-
-            // Ativando Layout Profissional V2
             RegistroScreenV2(
                 viewModel = registroVM,
                 onRegistroSucesso = { navController.popBackStack() },
@@ -62,8 +61,7 @@ fun AppNavGraph() {
 
         composable("home") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
-            
-            // Ativando Home Profissional V2 (Mostra apenas 1 unidade de viagem)
+
             HomeScreenV2(
                 nomeUsuario = usuarioLogado?.nome ?: "Usuário",
                 userId = usuarioLogado?.id ?: 0,
@@ -76,14 +74,18 @@ fun AppNavGraph() {
                 },
                 onNovaViagem = { navController.navigate("nova_viagem") },
                 onMinhasViagens = { navController.navigate("minhas_viagens") },
-                onSobre = { navController.navigate("sobre") }
+                onSobre = { navController.navigate("sobre") },
+                onVerFotos = { viagemId ->
+                    navController.navigate("fotos/$viagemId")
+                },
+                onVerRoteiro = { viagemId ->
+                    navController.navigate("roteiro/$viagemId")
+                }
             )
         }
 
         composable("nova_viagem") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
-            
-            // Ativando Layout Profissional V2
             NovaViagemScreenV2(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
@@ -93,8 +95,6 @@ fun AppNavGraph() {
 
         composable("minhas_viagens") {
             val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
-            
-            // Ativando Layout Profissional V2
             MinhasViagensScreenV2(
                 viewModel = viagemVM,
                 userId = usuarioLogado?.id ?: 0,
@@ -104,27 +104,28 @@ fun AppNavGraph() {
                 }
             )
         }
-        
+
+        // --- ROTAS PARA FOTOS E ROTEIRO ---
         composable(
-            route = "editar_viagem/{viagemId}",
+            route = "fotos/{viagemId}",
             arguments = listOf(navArgument("viagemId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val viagemId = backStackEntry.arguments?.getInt("viagemId") ?: 0
-            val viagemVM: ViagemViewModel = viewModel(factory = ViagemViewModel.Factory(viagemRepository))
-            
-            // Ativando Layout Profissional V2 para Edição
-            NovaViagemScreenV2(
-                viewModel = viagemVM,
-                userId = usuarioLogado?.id ?: 0,
-                viagemId = viagemId,
-                onVoltar = { navController.popBackStack() }
-            )
+            val id = backStackEntry.arguments?.getInt("viagemId")
+            // Placeholder temporário para não dar erro de compilação
+            Text("Tela de Fotos da Viagem ID: $id (Em desenvolvimento)")
+        }
+
+        composable(
+            route = "roteiro/{viagemId}",
+            arguments = listOf(navArgument("viagemId") { type = NavType.IntType })
+        ) {
+            Text("Tela de Roteiro em desenvolvimento")
         }
 
         composable("sobre") {
             SobreScreen(onVoltar = { navController.popBackStack() })
         }
-        
+
         composable("esqueci") {
             EsqueciSenhaScreen(onVoltar = { navController.popBackStack() })
         }

@@ -1,17 +1,13 @@
 package com.example.gerenciamentodeviagens.ui.screen
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.Context
 import android.location.Geocoder
-import android.net.Uri
 import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -54,59 +48,44 @@ fun HomeScreenV2(
     onSair: () -> Unit,
     onNovaViagem: () -> Unit,
     onMinhasViagens: () -> Unit,
-    onSobre: () -> Unit
+    onSobre: () -> Unit,
+    onVerFotos: (Int) -> Unit,
+    onVerRoteiro: (Int) -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
     val viagensAtuais by viewModel.viagensAtuais.collectAsState()
     val cidadeAtual by viewModel.cidadeAtual.collectAsState()
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    // Estados para as fotos
     var showPhotoDialog by remember { mutableStateOf(false) }
 
-    // Launcher para abrir a Galeria (Permite ver a pasta Downloads)
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            Toast.makeText(context, "Foto anexada com sucesso!", Toast.LENGTH_SHORT).show()
-        }
+    // Launcher para Galeria
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) Toast.makeText(context, "Foto anexada!", Toast.LENGTH_SHORT).show()
     }
 
-    // Launcher para abrir a Câmera
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            Toast.makeText(context, "Foto capturada!", Toast.LENGTH_SHORT).show()
-        }
+    // Launcher para Câmera
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) Toast.makeText(context, "Foto capturada!", Toast.LENGTH_SHORT).show()
     }
 
-    // Launcher para permissão da Câmera
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) cameraLauncher.launch(null)
-        else Toast.makeText(context, "Permissão da câmera negada", Toast.LENGTH_SHORT).show()
     }
 
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     LaunchedEffect(Unit) {
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    // Lógica de localização (GPS)
     DisposableEffect(context, userId) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-            .setMinUpdateIntervalMillis(2000)
-            .build()
-
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
@@ -114,11 +93,8 @@ fun HomeScreenV2(
                         val cidade = withContext(Dispatchers.IO) {
                             try {
                                 val geocoder = Geocoder(context, Locale.getDefault())
-                                @Suppress("DEPRECATION")
                                 val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                                addresses?.getOrNull(0)?.let { addr ->
-                                    addr.locality ?: addr.subAdminArea ?: addr.adminArea
-                                }
+                                addresses?.getOrNull(0)?.locality
                             } catch (e: Exception) { null }
                         }
                         cidade?.let { viewModel.buscarViagensPelaCidade(userId, it) }
@@ -128,32 +104,30 @@ fun HomeScreenV2(
         }
         try {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        } catch (e: SecurityException) { e.printStackTrace() }
+        } catch (e: SecurityException) {}
         onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
     }
 
     BackHandler(enabled = drawerState.isClosed) { (context as? ComponentActivity)?.finish() }
 
-    val purpleGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF673AB7), Color(0xFF512DA8))
-    )
+    val purpleGradient = Brush.verticalGradient(listOf(Color(0xFF673AB7), Color(0xFF512DA8)))
 
     if (showPhotoDialog) {
         AlertDialog(
             onDismissRequest = { showPhotoDialog = false },
             title = { Text("Adicionar Foto") },
-            text = { Text("Deseja tirar uma foto agora ou anexar um arquivo do seu computador?") },
+            text = { Text("Deseja tirar uma foto ou escolher um arquivo?") },
             confirmButton = {
                 TextButton(onClick = {
                     showPhotoDialog = false
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                }) { Text("Tirar Foto") }
+                }) { Text("Câmera") }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showPhotoDialog = false
                     galleryLauncher.launch("image/*")
-                }) { Text("Anexar Arquivo") }
+                }) { Text("Galeria") }
             }
         )
     }
@@ -161,8 +135,11 @@ fun HomeScreenV2(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = Color.White, drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)) {
-                Box(modifier = Modifier.fillMaxWidth().height(160.dp).background(purpleGradient), contentAlignment = Alignment.CenterStart) {
+            ModalDrawerSheet {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(purpleGradient), contentAlignment = Alignment.CenterStart) {
                     Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(60.dp)) {
                             Icon(Icons.Default.Person, null, modifier = Modifier.padding(12.dp), tint = Color.White)
@@ -174,102 +151,114 @@ fun HomeScreenV2(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                NavigationDrawerItem(icon = { Icon(Icons.Default.AddCircleOutline, null) }, label = { Text("Nova Viagem") }, selected = false, onClick = { scope.launch { drawerState.close() }; onNovaViagem() }, modifier = Modifier.padding(horizontal = 12.dp))
-                NavigationDrawerItem(icon = { Icon(Icons.Default.Map, null) }, label = { Text("Meus Roteiros") }, selected = false, onClick = { scope.launch { drawerState.close() }; onMinhasViagens() }, modifier = Modifier.padding(horizontal = 12.dp))
-                HorizontalDivider(modifier = Modifier.padding(24.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                NavigationDrawerItem(icon = { Icon(Icons.Default.Info, null) }, label = { Text("Sobre BoraViajar") }, selected = false, onClick = { scope.launch { drawerState.close() }; onSobre() }, modifier = Modifier.padding(horizontal = 12.dp))
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.AddCircleOutline, null) },
+                    label = { Text("Nova Viagem") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onNovaViagem() }
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Map, null) },
+                    label = { Text("Meus Roteiros") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onMinhasViagens() }
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Info, null) },
+                    label = { Text("Sobre") },
+                    selected = false,
+                    onClick = { scope.launch { drawerState.close() }; onSobre() }
+                )
                 Spacer(modifier = Modifier.weight(1f))
-                NavigationDrawerItem(icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) }, label = { Text("Sair", color = Color.Red) }, selected = false, onClick = { scope.launch { drawerState.close() }; onSair() }, modifier = Modifier.padding(12.dp))
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
+                    label = { Text("Sair") },
+                    selected = false,
+                    onClick = { onSair() }
+                )
             }
         }
     ) {
+        val viagem = viagensAtuais.firstOrNull()
+
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text(text = "Bem-vinda, $nomeUsuario!", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF673AB7)) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Menu") } },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                    title = { Text("Bem-vinda, $nomeUsuario!", fontWeight = FontWeight.Bold, color = Color(0xFF673AB7)) },
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, null) } }
                 )
             },
-            containerColor = Color(0xFFF8F9FA)
+            bottomBar = {
+                if (viagem != null) {
+                    NavigationBar(containerColor = Color.White) {
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.ListAlt, null) },
+                            label = { Text("Roteiro") },
+                            selected = false,
+                            onClick = { onVerRoteiro(viagem.id) }
+                        )
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.PhotoLibrary, null) },
+                            label = { Text("Fotos") },
+                            selected = false,
+                            onClick = { onVerFotos(viagem.id) }
+                        )
+                    }
+                }
+            }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val viagemParaMostrar = viagensAtuais.firstOrNull()
-
-                if (viagemParaMostrar != null) {
-                    // 1. MAPA NO TOPO
-                    Text("LOCALIZAÇÃO NO MAPA", modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 1.sp)
-                    Card(modifier = Modifier.fillMaxWidth().height(120.dp), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFFE3F2FD))) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val stroke = 1.5f
-                                val street = Color.White
-                                for (i in 1..10) {
-                                    drawLine(street, Offset(size.width * (i * 0.1f), 0f), Offset(size.width * (i * 0.1f), size.height), strokeWidth = stroke)
-                                    drawLine(street, Offset(0f, size.height * (i * 0.1f)), Offset(size.width, size.height * (i * 0.1f)), strokeWidth = stroke)
-                                }
-                            }
-                            Icon(Icons.Default.LocationOn, null, tint = Color.Red, modifier = Modifier.size(32.dp).align(Alignment.Center).padding(bottom = 20.dp))
-                            Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0xFF4285F4)).padding(8.dp)) {
-                                Column {
-                                    Text(text = cidadeAtual ?: "Bombinhas", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(text = "Localização em tempo real", color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp)
-                                }
-                            }
+            Column(modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())) {
+                if (viagem != null) {
+                    Card(modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .padding(bottom = 16.dp)) {
+                        Box(modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFE3F2FD))) {
+                            Icon(Icons.Default.LocationOn, null, tint = Color.Red, modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(40.dp))
+                            Text(cidadeAtual ?: "Localizando...", modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .background(Color(0xFF4285F4).copy(alpha = 0.8f))
+                                .padding(8.dp), color = Color.White, textAlign = TextAlign.Center)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // 2. VIAGEM ABAIXO DO MAPA
-                    Text("VIAGEM EM CURSO", modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF673AB7), letterSpacing = 1.sp)
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF673AB7)), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF673AB7))) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (viagemParaMostrar.tipo == "Lazer") Icons.Default.BeachAccess else Icons.Default.BusinessCenter, null, tint = Color.White, modifier = Modifier.size(24.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(viagemParaMostrar.destino, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(viagem.destino, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                TripBlockV2("Partida", dateFormatter.format(Date(viagemParaMostrar.dataInicio)))
-                                TripBlockV2("Retorno", dateFormatter.format(Date(viagemParaMostrar.dataFim)))
+                                TripBlockV2("Partida", dateFormatter.format(Date(viagem.dataInicio)))
+                                TripBlockV2("Retorno", dateFormatter.format(Date(viagem.dataFim)))
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                TripBlockV2("Orçamento", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.orcamento))
-                                TripBlockV2("Gastos Atuais", "R$ " + String.format(Locale.getDefault(), "%.2f", viagemParaMostrar.totalGastos))
+                            Button(onClick = { showPhotoDialog = true }, modifier = Modifier.padding(top = 10.dp)) {
+                                Text("Adicionar Foto")
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // 3. BOTÃO DE FOTOS
-                    Button(onClick = { showPhotoDialog = true }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))) {
-                        Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("FOTOS", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-
                 } else {
-                    Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.White, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(20.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.EventNote, null, modifier = Modifier.size(48.dp), tint = Color.LightGray.copy(alpha = 0.6f))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text("Tudo organizado!", style = MaterialTheme.typography.titleMedium, color = Color.DarkGray, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Nenhum roteiro para hoje em\n${cidadeAtual ?: "sua região"}", textAlign = TextAlign.Center, color = Color.Gray, fontSize = 13.sp)
+                    Spacer(Modifier.height(40.dp))
+                    Card(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(4.dp),
+                        shape = RoundedCornerShape(24.dp)) {
+                        Column(modifier = Modifier
+                            .padding(32.dp)
+                            .fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Assignment, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                            Spacer(Modifier.height(16.dp))
+                            Text("Tudo organizado!", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Nenhum roteiro para hoje em ${cidadeAtual ?: "sua cidade"}", color = Color.Gray, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -279,9 +268,9 @@ fun HomeScreenV2(
 }
 
 @Composable
-fun TripBlockV2(label: String, value: String) {
+fun TripBlockV2(label: String, date: String) {
     Column {
-        Text(label, fontSize = 9.sp, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-        Text(value, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
+        Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+        Text(date, color = Color.White, fontWeight = FontWeight.Bold)
     }
 }
