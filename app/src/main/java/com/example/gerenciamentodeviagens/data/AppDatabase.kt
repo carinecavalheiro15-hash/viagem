@@ -6,11 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.gerenciamentodeviagens.model.Usuario
 import com.example.gerenciamentodeviagens.model.Viagem
+import com.example.gerenciamentodeviagens.model.Foto
 
-@Database(entities = [Usuario::class, Viagem::class], version = 3, exportSchema = false)
+@Database(entities = [Usuario::class, Viagem::class, Foto::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun viagemDao(): ViagemDao
+    abstract fun fotoDao(): FotoDao
 
     companion object {
         @Volatile
@@ -23,7 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "viagens_db"
                 )
-                .fallbackToDestructiveMigration() // Para simplificar o desenvolvimento inicial com novas tabelas
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

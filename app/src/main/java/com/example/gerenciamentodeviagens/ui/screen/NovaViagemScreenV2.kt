@@ -41,6 +41,19 @@ fun NovaViagemScreenV2(
     
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
+    // Carrega os dados da viagem se for uma edição
+    LaunchedEffect(viagemId) {
+        if (viagemId > 0) {
+            viewModel.buscarViagemPorId(viagemId)?.let { viagem ->
+                destino = viagem.destino
+                tipo = viagem.tipo
+                dataInicio = viagem.dataInicio
+                dataFim = viagem.dataFim
+                orcamento = viagem.orcamento.toString()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -116,7 +129,6 @@ fun NovaViagemScreenV2(
             Button(
                 onClick = {
                     if (destino.isNotBlank() && orcamento.isNotBlank()) {
-                        // CORREÇÃO: Converte vírgula em ponto para o sistema entender o valor
                         val valorLimpo = orcamento.replace(",", ".")
                         viewModel.salvarViagem(
                             Viagem(
@@ -136,7 +148,7 @@ fun NovaViagemScreenV2(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
             ) {
-                Text("SALVAR VIAGEM", fontWeight = FontWeight.Bold)
+                Text(if (viagemId == 0) "SALVAR VIAGEM" else "ATUALIZAR VIAGEM", fontWeight = FontWeight.Bold)
             }
         }
 

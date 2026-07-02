@@ -18,6 +18,15 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GerenciamentoViagens">
+
+        <!-- ADICIONE O BLOCO ABAIXO PARA CORRIGIR O CRASH DO MAPA -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="coloque a chave aqui" />
+        <!-- Nota: Mesmo que você não tenha uma chave real agora,
+             a presença desta tag evita que o app feche sozinho.
+             O mapa apenas ficará em branco/cinza até você colocar uma chave válida. -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -25,7 +34,6 @@
             android:theme="@style/Theme.GerenciamentoViagens">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

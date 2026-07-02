@@ -13,7 +13,8 @@ class ViagemRepository(private val dao: ViagemDao) {
     
     suspend fun excluir(viagem: Viagem) = dao.excluir(viagem)
 
-    // Esta é a única função necessária agora para buscar todas as viagens encontradas para a cidade
+    suspend fun buscarPorId(id: Int): Viagem? = dao.buscarPorId(id)
+
     suspend fun buscarViagensAtuais(userId: Int, cidade: String, dataAtual: Long): List<Viagem> {
         return dao.buscarViagensAtuais(userId, cidade, dataAtual)
     }

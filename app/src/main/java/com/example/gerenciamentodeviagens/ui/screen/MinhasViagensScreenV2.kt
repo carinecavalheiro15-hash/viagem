@@ -2,7 +2,7 @@ package com.example.gerenciamentodeviagens.ui.screen
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,7 +48,7 @@ fun MinhasViagensScreenV2(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF6200EE))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF673AB7))
             )
         },
         containerColor = Color(0xFFF5F5F5)
@@ -56,7 +56,7 @@ fun MinhasViagensScreenV2(
         if (viagens.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.ExploreOff, null, size(64.dp), tint = Color.LightGray)
+                    Icon(Icons.Default.ExploreOff, null, Modifier.size(64.dp), tint = Color.LightGray)
                     Text("Nenhuma viagem planejada ainda.", color = Color.Gray)
                 }
             }
@@ -69,7 +69,7 @@ fun MinhasViagensScreenV2(
                 items(viagens) { viagem ->
                     ViagemCardV2(
                         viagem = viagem,
-                        onLongClick = { onEditarViagem(viagem.id) },
+                        onEditClick = { onEditarViagem(viagem.id) },
                         onDeleteClick = { viagemParaExcluir = viagem }
                     )
                 }
@@ -99,13 +99,11 @@ fun MinhasViagensScreenV2(
     }
 }
 
-private fun size(dp: androidx.compose.ui.unit.Dp) = Modifier.size(dp)
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ViagemCardV2(
     viagem: Viagem,
-    onLongClick: () -> Unit,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     val dateFormatter = SimpleDateFormat("dd/MM", Locale.getDefault())
@@ -113,10 +111,7 @@ fun ViagemCardV2(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = { },
-                onLongClick = onLongClick
-            ),
+            .clickable { onEditClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -156,8 +151,13 @@ fun ViagemCardV2(
                 )
             }
 
-            IconButton(onClick = onDeleteClick) {
-                Icon(Icons.Default.DeleteOutline, "Remover", tint = Color.LightGray)
+            Row {
+                IconButton(onClick = onEditClick) {
+                    Icon(Icons.Default.Edit, "Editar", tint = Color(0xFF673AB7))
+                }
+                IconButton(onClick = onDeleteClick) {
+                    Icon(Icons.Default.DeleteOutline, "Remover", tint = Color.LightGray)
+                }
             }
         }
     }

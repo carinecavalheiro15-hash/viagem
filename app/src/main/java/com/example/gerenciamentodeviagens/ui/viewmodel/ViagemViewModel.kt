@@ -36,9 +36,12 @@ class ViagemViewModel(private val repository: ViagemRepository) : ViewModel() {
         _cidadeAtual.value = cidade
         viewModelScope.launch {
             val hoje = System.currentTimeMillis()
-            // Busca a lista de todas as viagens que batem com a cidade e data
             _viagensAtuais.value = repository.buscarViagensAtuais(userId, cidade, hoje)
         }
+    }
+
+    suspend fun buscarViagemPorId(id: Int): Viagem? {
+        return repository.buscarPorId(id)
     }
 
     fun salvarViagem(viagem: Viagem) {
