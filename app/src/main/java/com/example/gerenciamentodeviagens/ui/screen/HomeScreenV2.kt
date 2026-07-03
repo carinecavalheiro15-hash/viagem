@@ -64,23 +64,9 @@ fun HomeScreenV2(
     val cidadeAtual by viewModel.cidadeAtual.collectAsState()
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    // Estados para o Mapa Real
-    var currentLatLng by remember { mutableStateOf(LatLng(-26.9166, -49.0717)) } // Padrão Blumenau
+    var currentLatLng by remember { mutableStateOf(LatLng(-26.9166, -49.0717)) }
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(currentLatLng, 15f)
-    }
-
-    var showPhotoDialog by remember { mutableStateOf(false) }
-
-    // Launchers de Câmera/Galeria
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) Toast.makeText(context, "Foto anexada!", Toast.LENGTH_SHORT).show()
-    }
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) Toast.makeText(context, "Foto capturada!", Toast.LENGTH_SHORT).show()
-    }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) cameraLauncher.launch(null)
     }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -89,7 +75,6 @@ fun HomeScreenV2(
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    // Lógica de localização atualizada para atualizar o Google Maps
     DisposableEffect(context, userId) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
@@ -100,12 +85,10 @@ fun HomeScreenV2(
                     val newLatLng = LatLng(location.latitude, location.longitude)
                     currentLatLng = newLatLng
 
-                    // Move a câmera para a nova posição com proteção contra NPE
                     scope.launch {
                         try {
                             cameraPositionState.animate(CameraUpdateFactory.newLatLng(newLatLng))
                         } catch (e: Exception) {
-                            // Caso o Maps ainda não tenha inicializado o CameraUpdateFactory
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(newLatLng, 15f)
                         }
                     }
@@ -136,26 +119,6 @@ fun HomeScreenV2(
     BackHandler(enabled = drawerState.isClosed) { (context as? ComponentActivity)?.finish() }
 
     val purpleGradient = Brush.verticalGradient(listOf(Color(0xFF673AB7), Color(0xFF512DA8)))
-
-    if (showPhotoDialog) {
-        AlertDialog(
-            onDismissRequest = { showPhotoDialog = false },
-            title = { Text("Adicionar Foto") },
-            text = { Text("Deseja tirar uma foto ou escolher um arquivo?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPhotoDialog = false
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                }) { Text("Câmera") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPhotoDialog = false
-                    galleryLauncher.launch("image/*")
-                }) { Text("Galeria") }
-            }
-        )
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -230,7 +193,6 @@ fun HomeScreenV2(
                 .verticalScroll(rememberScrollState())) {
 
                 if (viagem != null) {
-                    // --- MAPA GOOGLE REAL ---
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -251,7 +213,6 @@ fun HomeScreenV2(
                                     )
                                 }
                             }
-                            // Barra Azul com o Nome da Cidade
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -270,7 +231,6 @@ fun HomeScreenV2(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Card da Viagem Ativa (Roxo) com todas as informações requeridas
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -279,12 +239,8 @@ fun HomeScreenV2(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(viagem.destino, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             Text("Tipo: ${viagem.tipo}", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
-
                             Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
                                     Text("Partida", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                                     Text(dateFormatter.format(Date(viagem.dataInicio)), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -294,46 +250,29 @@ fun HomeScreenV2(
                                     Text(dateFormatter.format(Date(viagem.dataFim)), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 }
                             }
-
                             HorizontalDivider(color = Color.White.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
-
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
                                     Text("Orçamento", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                                     Text("R$ ${String.format(Locale.getDefault(), "%.2f", viagem.orcamento)}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 }
                                 Column {
-                                    Text("Total de Gastos", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                                    Text("R$ ${String.format(Locale.getDefault(), "%.2f", viagem.totalGastos)}", color = Color(0xFF81C784), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text("Saldo", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                                    val saldo = viagem.orcamento - viagem.totalGastos
+                                    Text("R$ ${String.format(Locale.getDefault(), "%.2f", saldo)}", color = if (saldo >= 0) Color(0xFF81C784) else Color(0xFFE57373), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Button(
-                                onClick = { showPhotoDialog = true },
-                                shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
-                                contentPadding = PaddingValues(horizontal = 24.dp)
-                            ) {
-                                Text("Adicionar Foto", color = Color.White)
                             }
                         }
                     }
                 } else {
-                    // ESTADO VAZIO (Prancheta)
                     Spacer(Modifier.height(40.dp))
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(4.dp),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Column(modifier = Modifier
-                            .padding(32.dp)
-                            .fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(modifier = Modifier.padding(32.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Assignment, null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
                             Spacer(Modifier.height(16.dp))
                             Text("Tudo organizado!", fontWeight = FontWeight.Bold, fontSize = 18.sp)

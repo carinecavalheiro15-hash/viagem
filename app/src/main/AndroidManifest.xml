@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
 
+
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -19,13 +20,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GerenciamentoViagens">
 
-        <!-- ADICIONE O BLOCO ABAIXO PARA CORRIGIR O CRASH DO MAPA -->
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="coloque a chave aqui" />
-        <!-- Nota: Mesmo que você não tenha uma chave real agora,
-             a presença desta tag evita que o app feche sozinho.
-             O mapa apenas ficará em branco/cinza até você colocar uma chave válida. -->
 
         <activity
             android:name=".MainActivity"

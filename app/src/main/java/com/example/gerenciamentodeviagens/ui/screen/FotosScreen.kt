@@ -1,6 +1,7 @@
 package com.example.gerenciamentodeviagens.ui.screen
 
 import android.Manifest
+import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.gerenciamentodeviagens.ui.viewmodel.FotoViewModel
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,18 +46,33 @@ fun FotosScreen(
         viewModel.setViagemId(viagemId)
     }
 
+    // Launcher para Galeria
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.adicionarFoto(it.toString()) }
     }
 
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+    // Launcher para Câmera - Agora salvando a foto e adicionando à galeria
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         if (bitmap != null) {
-            Toast.makeText(context, "Salvamento de foto da câmera em implementação", Toast.LENGTH_SHORT).show()
+            val filename = "foto_viagem_${System.currentTimeMillis()}.jpg"
+            try {
+                // Salva o bitmap no armazenamento interno do app
+                context.openFileOutput(filename, android.content.Context.MODE_PRIVATE).use { stream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+                }
+                val file = File(context.filesDir, filename)
+                // Adiciona o caminho do arquivo ao banco de dados via ViewModel
+                viewModel.adicionarFoto(Uri.fromFile(file).toString())
+                Toast.makeText(context, "Foto capturada com sucesso!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro ao salvar foto da câmera", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) cameraLauncher.launch(null)
+        else Toast.makeText(context, "Permissão de câmera negada", Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(
